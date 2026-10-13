@@ -6,13 +6,11 @@ class HydeGenerator:
         self.embeddings = embeddings
 
     def generate_vector(self, query):
+        """Write a short hypothetical answer and return its embedding (None if it fails)."""
 
-        prompt = f"""
+        prompt = f"""You are a medical expert.
 
-You are a medical expert.
-
-Write a short factual paragraph answering the
-following asthma-related question.
+Write a short factual paragraph answering the following asthma-related question.
 
 Question:
 {query}
@@ -20,10 +18,16 @@ Question:
 Use medical terminology when possible.
 """
 
-        response = self.llm.invoke(prompt)
+        try:
+            response = self.llm.invoke(prompt)
 
-        hypothetical_doc = response.content
+            hypothetical_doc = response.content
 
-        vector = self.embeddings.embed_query(hypothetical_doc)
+            if not hypothetical_doc or not hypothetical_doc.strip():
+                return None
 
-        return vector
+            return self.embeddings.embed_query(hypothetical_doc)
+
+        except Exception as e:
+            print(f"[HyDE] failed: {e}")
+            return None

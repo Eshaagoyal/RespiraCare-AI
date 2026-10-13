@@ -12,7 +12,11 @@ class TFIDFRetriever:
             doc.page_content for doc in documents
         ]
 
-        self.vectorizer = TfidfVectorizer()
+        self.vectorizer = TfidfVectorizer(
+            stop_words="english",
+            ngram_range=(1, 2),
+            sublinear_tf=True
+        )
 
         self.matrix = self.vectorizer.fit_transform(self.texts)
 
@@ -26,6 +30,5 @@ class TFIDFRetriever:
 
         ranked_indices = np.argsort(scores)[::-1][:k]
 
-        results = [self.documents[i] for i in ranked_indices]
-
-        return results
+        # keep only chunks that share at least one word with the query
+        return [self.documents[i] for i in ranked_indices if scores[i] > 0]

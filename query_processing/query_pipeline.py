@@ -17,11 +17,12 @@ class QueryPipeline:
             suggestions = self.bigram.suggest(token)
             bigram_suggestions.extend(suggestions)
 
-        bigram_suggestions = list(set(bigram_suggestions))
+        bigram_suggestions = list(dict.fromkeys(bigram_suggestions))
 
         expanded_queries = self.multiquery.expand(query)
 
-        all_queries = list(set([query] + expanded_queries))
+        # the original query always comes first; duplicates are removed but the order is kept
+        all_queries = list(dict.fromkeys([query] + expanded_queries))
 
         hyde_vector = self.hyde.generate_vector(query)
 

@@ -1,94 +1,16 @@
-# 🫁 Asthma Medical AI Assistant
+# RespiraCare AI (Asthma Edition)
 
-An intelligent **RAG-based AI system** designed to answer asthma-related medical queries using trusted medical documents, hybrid retrieval techniques, and LLM-based response generation.
+An asthma information assistant. It asks a follow-up question when a message is vague, answers only from retrieved passages of trusted sources (WHO, NHS, NHLBI, MedlinePlus), shows its sources, checks its answer against them, and says so when it cannot answer. It also detects emergency danger signs. It gives general information, not a diagnosis.
 
----
+Stack: React (Vite, Tailwind), FastAPI, SQLite, FAISS + BM25 + TF-IDF (Reciprocal Rank Fusion, query expansion, HyDE), Groq-hosted language models.
 
-## 🚀 Features
+## Run
+1. python -m venv venv, activate it, then pip install -r requirements.txt
+2. Create a file named .env with one line: GROQ_API_KEY=your_key
+3. python ingest_kb.py        (builds the index from data/kb/kb_clean.csv)
+4. uvicorn api:app --reload   (API docs at http://127.0.0.1:8000/docs)
+5. cd frontend, npm install, npm run dev   (http://localhost:5173)
+6. python run_eval.py          (runs the 25 edge-case tests, writes eval_results.md)
 
-* 🔍 Retrieval-Augmented Generation (RAG)
-* ⚡ Hybrid Search:
-
-  * BM25
-  * TF-IDF
-  * Vector Search (FAISS)
-* 🧠 Query Processing:
-
-  * Bigram Model
-  * Query Expansion
-  * HyDE
-* 🤖 LLM Integration (Groq)
-* 🛡️ Safety Guardrails
-* 💬 Interactive UI (Streamlit)
-
----
-
-## 🧠 Architecture
-
-User Query
-→ Query Processing
-→ Hybrid Retrieval (BM25 + TF-IDF + Vector)
-→ Context Builder
-→ LLM (Groq)
-→ Response
-
-## 📸 Demo
-
-### Chat Assistant
-![Chat UI](images/chat.png)
-
-### Scenario Advisor
-![Scenario Advisor](images/scenario.png)
-
-## ⚙️ Tech Stack
-
-* Python
-* Streamlit
-* FAISS
-* BM25
-* TF-IDF
-* Groq API
-
----
-
-## ▶️ How to Run
-
-```bash
-git clone https://github.com/Eshaagoyal/Asthma-Medical-AI-Assistant.git
-cd asthma-rag-ai
-
-python -m venv venv
-venv\Scripts\activate
-
-pip install -r requirements.txt
-streamlit run Home.py
-```
-
----
-
-## 💡 Example Queries
-
-* What are asthma triggers?
-* How to manage asthma attack?
-* Difference between allergic and non-allergic asthma?
-
----
-
-## 🔥 Why This Project is Unique
-
-* Combines **BM25 + TF-IDF + Vector search** (Hybrid RAG)
-* Uses **query expansion + HyDE** for better retrieval
-* Domain-specific **medical assistant**
-* Includes **safety guardrails**
-
----
-
-## ⚠️ Disclaimer
-
-This project is for educational purposes only and not a substitute for professional medical advice.
-
----
-
-## 👩‍💻 Author
-
-Esha Goyal
+## Limitations
+Asthma only, English only, 42 knowledge chunks, no content for children, no medicine doses. Emergency detection is rule-based and can miss unusual wording. Answers take 5 to 30 seconds. Not medical advice.

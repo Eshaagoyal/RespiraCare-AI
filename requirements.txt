@@ -1,23 +1,12 @@
-langchain
-langchain-community
-langchain-core
-langgraph
-langsmith
-
-sentence-transformers
-faiss-cpu
-chromadb
-
-pymupdf
-pandas
-numpy
-scikit-learn
-rank-bm25
-
-nltk
-
-groq
-ollama
-
-streamlit
-python-dotenv
+   fastapi
+   uvicorn
+   sqlalchemy
+   python-dotenv
+   pandas
+   scikit-learn
+   rank-bm25
+   faiss-cpu
+   sentence-transformers
+   langchain-core
+   langchain-community
+   langchain-groq

@@ -1,4 +1,4 @@
-from collections import defaultdict
+from retrieval.hybrid_search import reciprocal_rank_fusion
 
 
 class RetrievalPipeline:
@@ -11,29 +11,10 @@ class RetrievalPipeline:
 
     def reciprocal_rank_fusion(self, results, k=60):
 
-        scores = defaultdict(float)
-        doc_map = {}
-
-        for docs in results:
-
-            for rank, doc in enumerate(docs):
-
-                key = doc.page_content
-
-                scores[key] += 1 / (k + rank)
-
-                doc_map[key] = doc
-
-        ranked_docs = sorted(
-            scores.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-
-        return [doc_map[key] for key, _ in ranked_docs]
+        return reciprocal_rank_fusion(results, k)
 
 
-    def retrieve(self, query, top_k=20):
+    def retrieve(self, query, top_k=10):
 
         query_data = self.query_pipeline.process(query)
 
@@ -42,20 +23,15 @@ class RetrievalPipeline:
 
         results = []
 
-
-        # Hybrid retrieval for expanded queries
+        # Hybrid retrieval (BM25 + TF-IDF + FAISS) for the original and expanded queries
         for q in queries[:6]:
 
-            docs = self.hybrid_retriever.search(q)
+            results.append(self.hybrid_retriever.search(q))
 
-            results.append(docs)
+        # HyDE: semantic search with the hypothetical answer (skipped if it could not be made)
+        if hyde_vector is not None:
 
-
-        # HyDE vector retrieval
-        hyde_docs = self.hybrid_retriever.vector_search(hyde_vector)
-
-        results.append(hyde_docs)
-
+            results.append(self.hybrid_retriever.vector_search(hyde_vector))
 
         # Rank fusion
         fused_docs = self.reciprocal_rank_fusion(results)

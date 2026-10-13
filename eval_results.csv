@@ -1,0 +1,4 @@
+id,category,query,result,detail,seconds,reply
+1,Vague symptom,I have a cough,PASS,status=clarify,0.7,How long have you had the cough?
+5,Information,Can asthma be cured?,PASS,"status=answer, citations=1, has 'cured'=True",4.2,"**In short:** Asthma cannot be cured, but it can be managed with treatment [1].  - Inhalers (bronchodilators, "
+8,Emergency,I can't breathe,PASS,status=emergency,0.0,**This could be serious. Please get urgent medical help now.**  Call your local emergency number (112 in India

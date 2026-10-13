@@ -1,5 +1,6 @@
 import os
 
+from dotenv import load_dotenv
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from safety.guardrails import Guardrails
@@ -21,28 +22,54 @@ from retrieval.retrieval_pipeline import RetrievalPipeline
 # RAG pipeline
 from rag.rag_chain import RAGPipeline
 
+# The API key is read from a file named .env in the project folder (never write it in code):
+#   GROQ_API_KEY=your_key_here
+load_dotenv()
+
+MAIN_MODEL = os.getenv("MAIN_MODEL", "openai/gpt-oss-120b")   # writes and checks the answer
+FAST_MODEL = os.getenv("FAST_MODEL", "openai/gpt-oss-20b")    # triage, query expansion, HyDE, memory
+
+
+def _make_llm(model, key, temperature):
+    return ChatGroq(model_name=model, groq_api_key=key, temperature=temperature)
+
 
 def initialize_system():
 
     print("Initializing Asthma RAG System...\n")
+
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError(
+            "GROQ_API_KEY is missing. Create a file named .env in the project folder "
+            "with one line:  GROQ_API_KEY=your_key_here"
+        )
 
     # Embedding model
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # Groq LLM
-    llm = ChatGroq(
-        model_name="llama-3.1-8b-instant",
-        groq_api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2
-    )
+    # Groq language models
+    llm = _make_llm(MAIN_MODEL, key, 0.2)        # answer generation
+    judge_llm = _make_llm(MAIN_MODEL, key, 0.0)  # faithfulness check
+    fast_llm = _make_llm(FAST_MODEL, key, 0.0)   # small helper tasks
+
+    try:
+        fast_llm.invoke("Reply with OK")
+    except Exception as e:
+        print(f"[warning] fast model {FAST_MODEL} is not available ({e}). Using {MAIN_MODEL} for everything.")
+        fast_llm = llm
 
     # Load vector database
     vector_db = load_vector_store(embeddings)
 
-    # Load stored documents for keyword retrieval
-    documents = vector_db.similarity_search("", k=1000)
+    # All stored chunks, for the keyword retrievers
+    try:
+        documents = list(vector_db.docstore._dict.values())
+    except Exception:
+        documents = vector_db.similarity_search("", k=1000)
+    print(f"Knowledge base: {len(documents)} chunks")
 
     # Keyword retrievers
     bm25_retriever = BM25Retriever(documents)
@@ -58,8 +85,8 @@ def initialize_system():
     # Query intelligence
     tokenizer = Tokenizer()
     bigram_model = BigramModel()
-    multiquery = MultiQueryExpander(llm)
-    hyde = HydeGenerator(llm, embeddings)
+    multiquery = MultiQueryExpander(fast_llm)
+    hyde = HydeGenerator(fast_llm, embeddings)
 
     query_pipeline = QueryPipeline(
         tokenizer,
@@ -77,8 +104,10 @@ def initialize_system():
     # RAG pipeline
     rag = RAGPipeline(
         retrieval_pipeline,
-        llm
+        llm,
+        judge_llm
     )
+    rag.fast_llm = fast_llm  # used by api.py for triage and chat memory
 
     print("System Ready!\n")
 
@@ -86,31 +115,13 @@ def initialize_system():
 
 
 def main():
+    """Simple command-line chat for quick tests: python ai_core.py"""
 
     rag = initialize_system()
-
-    # Initialize guardrails
     guard = Guardrails()
 
     print("Asthma Medical AI Assistant")
     print("Type 'exit' to quit.\n")
-
-    short_query_map = {
-        "symptom": "What are the symptoms of asthma?",
-        "symptoms": "What are the symptoms of asthma?",
-        "treatment": "How is asthma treated?",
-        "treat": "How is asthma treated?",
-        "inhaler": "What inhalers are used for asthma?",
-        "inhalers": "What inhalers are used for asthma?",
-        "causes": "What causes asthma?",
-        "cause": "What causes asthma?",
-        "triggers": "What triggers asthma attacks?",
-        "trigger": "What triggers asthma attacks?",
-        "attack": "What happens during an asthma attack?",
-        "prevention": "How can asthma attacks be prevented?"
-    }
-
-    previous_query = ""
 
     while True:
 
@@ -119,39 +130,18 @@ def main():
         if query.lower() == "exit":
             break
 
-        # Guardrail safety check
         safe, response = guard.filter_query(query)
 
         if not safe:
-            print("\nAnswer:\n")
-            print(response)
-            print("\n---------------------------\n")
+            print("\n" + response + "\n---------------------------\n")
             continue
 
-        normalized_query = query.lower().strip()
+        result = rag.run(query)
 
-        # Handle follow-up questions using previous query
-        if previous_query and any(word in normalized_query for word in ["it","its","this","that","they","them","these","those"]):
-            query = previous_query + " " + query
-
-        # Ensure asthma context
-        if "asthma" not in normalized_query:
-            query = "In asthma, " + query
-
-        # Improve short queries
-        for key in short_query_map:
-            if key in normalized_query:
-                query = short_query_map[key]
-                break
-
-        answer = rag.run(query)
-
-        print("\nAnswer:\n")
-        print(answer)
-
+        print("\n" + (result.get("answer") or "") + "\n")
+        for i, c in enumerate(result.get("citations", []), start=1):
+            print(f"[{i}] {c['source']}: {c['title']} ({c['url']})")
         print("\n---------------------------\n")
-
-        previous_query = query
 
 
 if __name__ == "__main__":
